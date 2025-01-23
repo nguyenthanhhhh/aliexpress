@@ -1,4 +1,5 @@
-const puppeteer = require('puppeteer')
+const chromium = require('chrome-aws-lambda')
+const puppeteer = require('puppeteer-core')
 const { TIME_OUT } = require('./const')
 
 const scrapeAliExpress = async (productId) => {
@@ -124,8 +125,12 @@ const getTitle = async (productId) => {
 const getOriginalPrice = async (productId) => {
   const browser = await puppeteer.launch({
     headless: true,
-    args: ['--no-sandbox', '--disable-setuid-sandbox'],
+    executablePath: await chromium.executablePath, // Sử dụng trình duyệt từ chrome-aws-lambda
+    args: chromium.args, // Tham số cấu hình cần thiết cho môi trường serverless
+    defaultViewport: chromium.defaultViewport,
+    ignoreHTTPSErrors: true,
   })
+
   const page = await browser.newPage()
 
   // Ngụy trang Puppeteer
@@ -155,8 +160,7 @@ const getOriginalPrice = async (productId) => {
     await page.goto(productUrl, { waitUntil: 'domcontentloaded' })
 
     // Chờ các phần tử cần thiết xuất hiện
-    await page.waitForSelector('.product-price-value', { timeout: TIME_OUT })
-    
+    await page.waitForSelector('.product-price-value', { timeout: 30000 })
 
     // Lấy thông tin sản phẩm
     const productDetails = await page.evaluate(() => {
@@ -172,9 +176,10 @@ const getOriginalPrice = async (productId) => {
     return productDetails
   } catch (error) {
     console.error('getOriginalPrice:', error.message)
+    return null
+  } finally {
+    await browser.close()
   }
-
-  await browser.close()
 }
 
 const getPromotionalPrice = async (productId) => {
@@ -233,4 +238,3 @@ const getPromotionalPrice = async (productId) => {
 }
 
 module.exports = { getTitle, getOriginalPrice, getPromotionalPrice }
-
