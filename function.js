@@ -1,5 +1,4 @@
-const chromium = require('chrome-aws-lambda')
-const puppeteer = require('puppeteer-core')
+const puppeteer = require('puppeteer')
 const { TIME_OUT } = require('./const')
 
 const scrapeAliExpress = async (productId) => {
@@ -55,7 +54,6 @@ const scrapeAliExpress = async (productId) => {
       }
     })
 
-    console.log('Product Details:', productDetails)
     return productDetails
   } catch (error) {
     console.error('Error fetching product details:', error.message)
@@ -113,7 +111,6 @@ const getTitle = async (productId) => {
       return title
     })
 
-    console.log('title:', productDetails)
     return productDetails
   } catch (error) {
     console.error('Error fetching product details:', error.message)
@@ -125,12 +122,8 @@ const getTitle = async (productId) => {
 const getOriginalPrice = async (productId) => {
   const browser = await puppeteer.launch({
     headless: true,
-    executablePath: await chromium.executablePath, // Sử dụng trình duyệt từ chrome-aws-lambda
-    args: chromium.args, // Tham số cấu hình cần thiết cho môi trường serverless
-    defaultViewport: chromium.defaultViewport,
-    ignoreHTTPSErrors: true,
+    args: ['--no-sandbox', '--disable-setuid-sandbox'],
   })
-
   const page = await browser.newPage()
 
   // Ngụy trang Puppeteer
@@ -160,7 +153,7 @@ const getOriginalPrice = async (productId) => {
     await page.goto(productUrl, { waitUntil: 'domcontentloaded' })
 
     // Chờ các phần tử cần thiết xuất hiện
-    await page.waitForSelector('.product-price-value', { timeout: 30000 })
+    await page.waitForSelector('.product-price-value', { timeout: TIME_OUT })
 
     // Lấy thông tin sản phẩm
     const productDetails = await page.evaluate(() => {
@@ -172,14 +165,12 @@ const getOriginalPrice = async (productId) => {
       return originalPrice
     })
 
-    console.log('originalPrice:', productDetails)
     return productDetails
   } catch (error) {
     console.error('getOriginalPrice:', error.message)
-    return null
-  } finally {
-    await browser.close()
   }
+
+  await browser.close()
 }
 
 const getPromotionalPrice = async (productId) => {
@@ -228,7 +219,6 @@ const getPromotionalPrice = async (productId) => {
       return price !== originalPrice ? price : 'N/A' // Nếu giá khuyến mãi khác giá gốc, hiển thị giá khuyến mãi
     })
 
-    console.log('getPromotionalPrice', productDetails)
     return productDetails
   } catch (error) {
     console.error('Error fetching product details:', error.message)
